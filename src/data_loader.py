@@ -89,9 +89,7 @@ class DataLoader:
         file_path = self.data_dir / "epl_event_data_15.csv"
 
         if not file_path.exists():
-            raise FileNotFoundError(
-                f"Events dataset not found:\n{file_path}"
-            )
+            raise FileNotFoundError(f"Events dataset not found:\n{file_path}")
 
         logger.info("Loading events dataset...")
 
@@ -124,9 +122,7 @@ class DataLoader:
         file_path = self.data_dir / "epl_matches_15.csv"
 
         if not file_path.exists():
-            raise FileNotFoundError(
-                f"Matches dataset not found:\n{file_path}"
-            )
+            raise FileNotFoundError(f"Matches dataset not found:\n{file_path}")
 
         logger.info("Loading matches dataset...")
 

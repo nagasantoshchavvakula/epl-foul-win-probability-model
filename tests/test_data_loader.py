@@ -21,10 +21,10 @@ import pytest
 from src.config import RAW_DATA_DIR
 from src.data_loader import DataLoader
 
-
 # ---------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------
+
 
 @pytest.fixture
 def loader():
@@ -38,6 +38,7 @@ def loader():
 # Initialization Tests
 # ---------------------------------------------------------------------
 
+
 def test_loader_initialization(loader):
     """
     Test DataLoader initialization.
@@ -50,6 +51,7 @@ def test_loader_initialization(loader):
 # ---------------------------------------------------------------------
 # Event Dataset Tests
 # ---------------------------------------------------------------------
+
 
 def test_load_events(loader):
     """
@@ -73,6 +75,7 @@ def test_load_events(loader):
 # Match Dataset Tests
 # ---------------------------------------------------------------------
 
+
 def test_load_matches(loader):
     """
     Test loading the EPL match dataset.
@@ -92,6 +95,7 @@ def test_load_matches(loader):
 # Load All Datasets
 # ---------------------------------------------------------------------
 
+
 def test_load_all(loader):
     """
     Test loading both datasets together.
@@ -109,6 +113,7 @@ def test_load_all(loader):
 # ---------------------------------------------------------------------
 # Dataset Info
 # ---------------------------------------------------------------------
+
 
 def test_dataset_info(loader):
     """
@@ -130,8 +135,8 @@ def test_dataset_info(loader):
 # Error Handling
 # ---------------------------------------------------------------------
 
-def test_invalid_directory():
 
+def test_invalid_directory():
     """
     Test loading from an invalid directory.
     """
@@ -144,7 +149,6 @@ def test_invalid_directory():
 
 
 def test_invalid_match_directory():
-
     """
     Test loading match dataset from an invalid directory.
     """
