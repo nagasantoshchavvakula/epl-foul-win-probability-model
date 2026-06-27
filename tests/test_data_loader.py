@@ -4,13 +4,9 @@ test_data_loader.py
 
 Unit tests for the DataLoader class.
 
-Author
-------
-Nagasantosh Chavvakula
-
-Project
--------
-EPL Foul Win Probability Model
+These tests create temporary CSV files so they do not depend on the
+real EPL datasets being present. This makes them suitable for GitHub
+Actions and other CI environments.
 """
 
 from pathlib import Path
@@ -18,143 +14,143 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.config import RAW_DATA_DIR
 from src.data_loader import DataLoader
-
-# ---------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------
 
 
 @pytest.fixture
-def loader():
+def sample_data_dir(tmp_path):
     """
-    Create a DataLoader instance using the default raw data directory.
+    Create a temporary data directory containing sample EPL datasets.
     """
-    return DataLoader()
+
+    data_dir = tmp_path
+
+    # Sample events dataset
+    events = pd.DataFrame(
+        {
+            "match_id": [1, 1],
+            "type.name": ["Pass", "Ball Receipt*"],
+            "player.id": [10, 11],
+        }
+    )
+
+    events.to_csv(
+        data_dir / "epl_event_data_15.csv",
+        index=False,
+    )
+
+    # Sample matches dataset
+    matches = pd.DataFrame(
+        {
+            "match_id": [1],
+            "home_team": ["Team A"],
+            "away_team": ["Team B"],
+        }
+    )
+
+    matches.to_csv(
+        data_dir / "epl_matches_15.csv",
+        index=False,
+    )
+
+    return data_dir
 
 
-# ---------------------------------------------------------------------
-# Initialization Tests
-# ---------------------------------------------------------------------
+@pytest.fixture
+def loader(sample_data_dir):
+    """
+    Create DataLoader using temporary datasets.
+    """
+    return DataLoader(sample_data_dir)
 
 
-def test_loader_initialization(loader):
+def test_loader_initialization(loader, sample_data_dir):
     """
     Test DataLoader initialization.
     """
 
-    assert loader is not None
-    assert loader.data_dir == RAW_DATA_DIR
-
-
-# ---------------------------------------------------------------------
-# Event Dataset Tests
-# ---------------------------------------------------------------------
+    assert loader.data_dir == sample_data_dir
 
 
 def test_load_events(loader):
     """
-    Test loading the EPL event dataset.
+    Test loading events dataset.
     """
 
     events = loader.load_events()
 
     assert isinstance(events, pd.DataFrame)
+
     assert not events.empty
 
-    # Required columns
     assert "match_id" in events.columns
+
     assert "type.name" in events.columns
 
-    # Dataset should contain many rows
-    assert events.shape[0] > 1000
-
-
-# ---------------------------------------------------------------------
-# Match Dataset Tests
-# ---------------------------------------------------------------------
+    assert len(events) == 2
 
 
 def test_load_matches(loader):
     """
-    Test loading the EPL match dataset.
+    Test loading matches dataset.
     """
 
     matches = loader.load_matches()
 
     assert isinstance(matches, pd.DataFrame)
+
     assert not matches.empty
 
     assert "match_id" in matches.columns
 
-    assert matches.shape[0] > 0
-
-
-# ---------------------------------------------------------------------
-# Load All Datasets
-# ---------------------------------------------------------------------
+    assert len(matches) == 1
 
 
 def test_load_all(loader):
     """
-    Test loading both datasets together.
+    Test loading both datasets.
     """
 
     events, matches = loader.load_all()
 
-    assert isinstance(events, pd.DataFrame)
-    assert isinstance(matches, pd.DataFrame)
+    assert len(events) == 2
 
-    assert not events.empty
-    assert not matches.empty
-
-
-# ---------------------------------------------------------------------
-# Dataset Info
-# ---------------------------------------------------------------------
+    assert len(matches) == 1
 
 
 def test_dataset_info(loader):
     """
-    Test dataset information dictionary.
+    Test dataset info.
     """
 
     info = loader.get_dataset_info()
 
-    assert isinstance(info, dict)
+    assert info["events_exists"]
 
-    assert info["events_exists"] is True
-    assert info["matches_exists"] is True
+    assert info["matches_exists"]
 
     assert Path(info["events_file"]).exists()
+
     assert Path(info["matches_file"]).exists()
-
-
-# ---------------------------------------------------------------------
-# Error Handling
-# ---------------------------------------------------------------------
 
 
 def test_invalid_directory():
     """
-    Test loading from an invalid directory.
+    Test invalid directory.
     """
 
     loader = DataLoader(Path("invalid_directory"))
 
     with pytest.raises(FileNotFoundError):
-
         loader.load_events()
 
 
 def test_invalid_match_directory():
     """
-    Test loading match dataset from an invalid directory.
+    Test invalid match directory.
     """
 
     loader = DataLoader(Path("invalid_directory"))
 
     with pytest.raises(FileNotFoundError):
-
         loader.load_matches()
