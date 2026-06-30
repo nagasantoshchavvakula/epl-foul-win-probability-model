@@ -9,7 +9,7 @@ Run:
     pytest tests/test_target_creation.py -v
 """
 
-from pathlib import Path
+# from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -45,19 +45,13 @@ def sample_events():
     return pd.DataFrame(
         {
 
-            "match_id": [1,1,1,1,1],
+            "match_id": [1, 1, 1, 1, 1],
 
-            "possession":[1,1,1,2,2],
+            "possession":[1, 1, 1, 2, 2],
 
-            "index":[1,2,3,4,5],
+            "index":[1, 2, 3, 4, 5],
 
-            "player.id":[
-                10,
-                10,
-                10,
-                20,
-                20
-            ],
+            "player.id":[10, 10, 10, 20, 20],
 
             "type.name":[
                 "Ball Receipt*",
@@ -154,7 +148,7 @@ def test_missing_required_columns():
 
     dataframe = pd.DataFrame(
         {
-            "A":[1,2,3]
+            "A":[1, 2, 3]
         }
     )
 
@@ -201,13 +195,13 @@ def test_no_positive_target():
     dataframe = pd.DataFrame(
         {
 
-            "match_id": [1,1],
+            "match_id": [1, 1],
 
-            "possession": [1,1],
+            "possession": [1, 1],
 
-            "index": [1,2],
+            "index": [1, 2],
 
-            "player.id": [100,100],
+            "player.id": [100, 100],
 
             "type.name": [
                 "Ball Receipt*",
@@ -221,3 +215,4 @@ def test_no_positive_target():
     dataset = creator.create_target(dataframe)
 
     assert dataset.iloc[0]["target"] == 0
+
