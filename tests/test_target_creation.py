@@ -47,13 +47,13 @@ def sample_events():
 
             "match_id": [1, 1, 1, 1, 1],
 
-            "possession":[1, 1, 1, 2, 2],
+            "possession": [1, 1, 1, 2, 2],
 
-            "index":[1, 2, 3, 4, 5],
+            "index": [1, 2, 3, 4, 5],
 
-            "player.id":[10, 10, 10, 20, 20],
+            "player.id": [10, 10, 10, 20, 20],
 
-            "type.name":[
+            "type.name": [
                 "Ball Receipt*",
                 "Pass",
                 "Foul Won",
@@ -148,7 +148,7 @@ def test_missing_required_columns():
 
     dataframe = pd.DataFrame(
         {
-            "A":[1, 2, 3]
+            "A": [1, 2, 3]
         }
     )
 
@@ -215,4 +215,3 @@ def test_no_positive_target():
     dataset = creator.create_target(dataframe)
 
     assert dataset.iloc[0]["target"] == 0
-
