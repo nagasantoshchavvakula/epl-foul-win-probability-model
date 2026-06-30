@@ -201,15 +201,15 @@ def test_no_positive_target():
     dataframe = pd.DataFrame(
         {
 
-            "match_id":[1,1],
+            "match_id": [1,1],
 
-            "possession":[1,1],
+            "possession": [1,1],
 
-            "index":[1,2],
+            "index": [1,2],
 
-            "player.id":[100,100],
+            "player.id": [100,100],
 
-            "type.name":[
+            "type.name": [
                 "Ball Receipt*",
                 "Pass"
             ]

@@ -154,3 +154,4 @@ def test_invalid_match_directory():
 
     with pytest.raises(FileNotFoundError):
         loader.load_matches()
+
