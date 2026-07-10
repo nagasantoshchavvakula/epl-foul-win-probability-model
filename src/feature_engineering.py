@@ -25,7 +25,7 @@ Nagasantosh Chavvakula
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -92,7 +92,7 @@ class FeatureEngineer:
         self._validate_columns(dataset)
 
         dataset = dataset.copy()
-        
+ 
     ############################################################
     # Coordinate Features
     ############################################################
@@ -129,7 +129,6 @@ class FeatureEngineer:
         )
 
         return dataset
-
 
     ####################################################################
     # Feature Creation
@@ -201,7 +200,6 @@ class FeatureEngineer:
 
         return dataset
 
-
     def _create_goal_angle(
         self,
         dataset: pd.DataFrame,
@@ -224,7 +222,6 @@ class FeatureEngineer:
         )
 
         return dataset
-
 
     def _create_pitch_zones(
         self,
@@ -270,7 +267,6 @@ class FeatureEngineer:
 
         return dataset
 
-
     ####################################################################
     # Event Features
     ####################################################################
@@ -299,7 +295,6 @@ class FeatureEngineer:
         )
 
         return dataset
-
 
     ####################################################################
     # Temporal Features
