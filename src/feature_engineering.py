@@ -92,7 +92,7 @@ class FeatureEngineer:
         self._validate_columns(dataset)
 
         dataset = dataset.copy()
- 
+
     ############################################################
     # Coordinate Features
     ############################################################
