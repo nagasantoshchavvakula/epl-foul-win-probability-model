@@ -6,7 +6,7 @@ Run:
     pytest tests/test_train_model.py -v
 """
 
-from pathlib import Path
+# from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -42,7 +42,11 @@ def train_model(tmp_path):
     TrainModel instance with temporary output paths.
     """
     dataset_path = tmp_path / "engineered_dataset.csv"
-    model_path = tmp_path / "models" / "random_forest_model.pkl"
+    model_path = (
+        tmp_path
+        / "models"
+        / "random_forest_model.pkl"
+    )
 
     return TrainModel(
         dataset_path=dataset_path,
@@ -134,7 +138,10 @@ def test_feature_importance(sample_dataset, train_model):
 
     assert isinstance(importance, pd.DataFrame)
     assert list(importance.columns) == ["feature", "importance"]
-    assert importance.iloc[0]["importance"] >= importance.iloc[-1]["importance"]
+    assert (
+        importance.iloc[0]["importance"]
+        >= importance.iloc[-1]["importance"]
+    )
 
 
 def test_save_model(sample_dataset, train_model):

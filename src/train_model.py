@@ -331,7 +331,9 @@ class TrainModel:
         logger.info("Evaluating model performance...")
 
         if y_proba.ndim != 2 or y_proba.shape[1] != 2:
-            raise ValueError("Prediction probabilities must contain two class columns.")
+            raise ValueError(
+                "Prediction probabilities must contain two class columns."
+            )
 
         proba_positive = y_proba[:, 1]
 
@@ -428,7 +430,8 @@ class TrainModel:
         Returns
         -------
         dict[str, Any]
-            Training artifacts, including metrics, model path, and feature importance.
+            "Training artifacts, including metrics,"
+            "model path and feature importance."
         """
 
         dataset = self.load_dataset()
