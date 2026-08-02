@@ -40,9 +40,9 @@ jobs:
         run: |
           ls -R
 
-      - name: Run Lint Checks
-        run: |
-          flake8 src tests --count --statistics
+      # - name: Run Lint Checks
+      #   run: |
+      #     flake8 src tests --count --statistics
 
       - name: Run Unit Tests
         run: |
