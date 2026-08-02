@@ -9,9 +9,16 @@ for a single event using the project's `FeatureEngineer` logic.
 Author: Generated for project
 """
 from __future__ import annotations
+from pathlib import Path
+import sys
+
+# Project root
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 from src.feature_engineering import FeatureEngineer
 from src.logger import get_logger
-from pathlib import Path
 import math
 import time
 
@@ -21,8 +28,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import streamlit as st
-
-import sys
 
 # Ensure project root is importable when running streamlit from repo root
 _project_root = Path(__file__).resolve().parents[2]
