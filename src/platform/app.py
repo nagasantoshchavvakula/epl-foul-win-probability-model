@@ -122,8 +122,8 @@ def build_single_event_df(
 
 
 def align_features(
-    single_row: pd.DataFrame, 
-    reference: pd.DataFrame, 
+    single_row: pd.DataFrame,
+    reference: pd.DataFrame,
     feature_engineer: FeatureEngineer
     ) -> pd.DataFrame:
     """Create a full feature vector aligned to the model's trained features.
