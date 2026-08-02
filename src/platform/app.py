@@ -9,7 +9,8 @@ for a single event using the project's `FeatureEngineer` logic.
 Author: Generated for project
 """
 from __future__ import annotations
-
+from src.feature_engineering import FeatureEngineer
+from src.logger import get_logger
 from pathlib import Path
 import math
 import time
@@ -27,9 +28,6 @@ import sys
 _project_root = Path(__file__).resolve().parents[2]
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
-
-from src.feature_engineering import FeatureEngineer
-from src.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -123,7 +121,11 @@ def build_single_event_df(
     return df
 
 
-def align_features(single_row: pd.DataFrame, reference: pd.DataFrame, feature_engineer: FeatureEngineer) -> pd.DataFrame:
+def align_features(
+    single_row: pd.DataFrame, 
+    reference: pd.DataFrame, 
+    feature_engineer: FeatureEngineer
+    ) -> pd.DataFrame:
     """Create a full feature vector aligned to the model's trained features.
 
     Strategy:
@@ -133,7 +135,9 @@ def align_features(single_row: pd.DataFrame, reference: pd.DataFrame, feature_en
     """
 
     # Engineer features on single row
-    engineered = feature_engineer.create_features(single_row)
+    engineered = feature_engineer.create_features(
+        single_row
+        )
 
     # Prepare numeric features from reference to learn feature names and medians
     numeric_ref = reference.select_dtypes(include=[np.number]).copy()
@@ -195,7 +199,8 @@ def main():
     # st.sidebar.title("⚽ EPL Foul Win Probability Predictor")
     # st.sidebar.markdown("---")
     st.sidebar.markdown("## About")
-    st.sidebar.write("This app predicts the probability that a player will win a foul after receiving or recovering possession in an EPL match.")
+    st.sidebar.write(
+        "This app predicts the probability that a player will win a foul after receiving or recovering possession in an EPL match.")
 
     st.sidebar.markdown("**Model**")
     st.sidebar.info("Random Forest Classifier")
