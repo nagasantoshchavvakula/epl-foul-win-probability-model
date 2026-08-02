@@ -11,3 +11,4 @@ pytest-cov
 
 flake8
 black
+reportlab>=4.0.0
