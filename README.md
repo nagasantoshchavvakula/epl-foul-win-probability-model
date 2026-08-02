@@ -172,18 +172,6 @@ No manual feature engineering is required.
 
 ---
 
-## 📷 Screenshots
-
-| Home | Prediction |
-|---|---|
-| ![Home](images/home.png) | ![Prediction](images/prediction.png) |
-| Model Performance | Feature Importance |
-| ![Model Performance](images/model_performance.png) | ![Feature Importance](images/feature_importance.png) |
-| Confusion Matrix |
-| ![Confusion Matrix](images/confusion_matrix.png) |
-
----
-
 ## ⚙️ Installation
 
 ```bash
