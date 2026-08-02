@@ -5,8 +5,9 @@ data/processed/
 # Models
 models/
 
-# Outputs
-outputs/
+# Evaluation outputs
+outputs/metrics.csv
+outputs/feature_importance.csv
 
 # Python
 __pycache__/
