@@ -214,16 +214,6 @@ Execute the notebooks in order to reproduce the data pipeline and model artifact
 streamlit run src/platform/app.py
 ```
 
-### Deploy to Streamlit Community Cloud
-
-1. Push this repository to GitHub.
-2. Sign in to https://streamlit.io/cloud and create a new app.
-3. Select this GitHub repository.
-4. Set the main file path to:
-
-```text
-src/platform/app.py
-```
 
 5. Confirm the Python version and dependencies are installed from `requirements.txt`.
 
