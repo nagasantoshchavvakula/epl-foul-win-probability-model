@@ -1,488 +1,372 @@
-# EPL Foul Win Probability Model
-
-## 1 Executive Summary
-
-### 1.1 Project overview
-The EPL Foul Win Probability Model is a sports analytics solution developed to forecast whether a player who receives or recovers possession will later win a foul in the same possession. The solution uses event-level soccer data from StatsBomb and applies a Random Forest classification model within a reproducible Python pipeline.
-
-### 1.2 Business problem
-Football teams, scouts, and performance analysts need early indicators of fouls to inform tactical decisions, set-piece preparation, and player evaluation. Predicting foul-win probability helps identify players who are likely to draw fouls and assets that generate transition opportunities.
-
-### 1.3 Solution
-The solution ingests EPL event data, builds a binary classification target, engineers spatial and contextual features, trains a Random Forest classifier, and exposes results through a Streamlit dashboard. The model predicts a probability score that indicates the likelihood of a foul-win event.
-
-### 1.4 Outcome
-The pipeline delivers a complete analytics workflow from raw data to deployment-ready application. It produces evaluation metrics, model artifacts, and an interactive dashboard for stakeholder exploration.
-
-### 1.5 Key achievements
-- Constructed a robust target engineering methodology for foul-win prediction
-- Designed domain-specific spatial and temporal features
-- Trained and evaluated a Random Forest classifier with interpretable metrics
-- Developed a user-facing Streamlit dashboard with automated scoring
-- Integrated unit testing and CI guidance for a production-grade pipeline
-
-## 2 Introduction
-
-### 2.1 Background
-Sports analytics has transformed football by enabling data-driven decisions across scouting, performance, and tactics. The ability to quantify player behavior during possession provides competitive advantage.
-
-### 2.2 Sports Analytics
-Modern sports analytics combines event tracking, machine learning, and domain expertise to generate actionable insights. In football, event data captures the sequence of actions that precede key outcomes.
-
-### 2.3 Importance of foul prediction
-A foul-winning event can halt an opponent's attack, enable set-piece opportunities, and reveal players who draw pressure effectively. Accurate prediction supports defensive planning, match preparation, and player valuations.
-
-### 2.4 Why machine learning
-Machine learning enables predictive capabilities beyond descriptive statistics. It can capture complex interactions between event location, timing, possession context, and the evolving state of a match.
-
-### 2.5 Real-world applications
-- Tactical planning for coaches
-- Opponent risk assessment
-- Player scouting reports
-- Set-piece threat analysis
-- In-game decision support
-
-## 3 Problem Statement
-
-### 3.1 Business objective
-Predict whether an event in which a player receives or recovers the ball will result in a foul being won later in the same possession.
-
-### 3.2 Machine Learning objective
-Build a binary classifier to estimate the probability of a foul-win outcome and provide actionable model performance metrics.
-
-### 3.3 Classification problem
-This is a binary classification problem with the target values:
-- `1`: Player wins a foul within the same possession
-- `0`: Player does not win a foul
-
-### 3.4 Target definition
-The target is derived from event sequences and possession tracking. It requires identifying a ball reception or recovery event and verifying whether a foul event occurs subsequently during that possession.
-
-### 3.5 Success criteria
-- High precision for predicted foul-win events
-- Balanced recall to avoid missing important foul opportunities
-- Strong ROC-AUC and PR-AUC for imbalanced classification
-- Clear feature importance and explainability
-
-## 4 Dataset Description
-
-### 4.1 StatsBomb Open Data
-The dataset is sourced from StatsBomb Open Data, which provides granular event logs for English Premier League matches.
-
-### 4.2 Dataset statistics
-- 380 EPL matches
-- 1.31M+ event records
-- 381,267 candidate events
-- Target class is imbalanced
-
-### 4.3 Matches
-The dataset contains a complete season of EPL matches, with match metadata and event sequences for each fixture.
-
-### 4.4 Events
-Each event record includes event type, timestamp, pitch coordinates, player identity, and match context.
-
-### 4.5 Target dataset
-Candidate events are generated from ball receipt and ball recovery events. The target dataset is a filtered subset of the event log that is suitable for foul-win modeling.
-
-### 4.6 Class imbalance
-The positive class (foul-win outcome) is a minority. Imbalanced classification is a central challenge and motivates careful metric selection.
-
-### 4.7 Candidate event generation
-Candidate events are extracted by selecting events that represent possession acquisition, such as receptions and recoveries. Those events are then connected to later foul outcomes within the same possession.
-
-### 4.8 Dataset schema
-Important columns include:
-- `event_id`
-- `match_id`
-- `player_id`
-- `event_type`
-- `x`
-- `y`
-- `period`
-- `minute`
-- `second`
-- `possession_id`
-- `outcome`
-- `foul_id`
-
-### 4.9 Important columns
-- `x`, `y`: pitch coordinates
-- `event_type`: reception, recovery, foul, etc.
-- `possession_id`: grouping events into a continuous team possession
-- `minute`, `second`: temporal position within the match
-- `outcome`: event success or failure
-
-## 5 Exploratory Data Analysis
-
-### 5.1 Dataset overview
-EDA establishes the shape of the dataset, feature ranges, event frequency, and target balance. It confirms that candidate events are concentrated in midfield and attacking third.
-
-### 5.2 Missing values
-The dataset is examined for missing values in coordinates, event types, and possession indicators. Missing data is handled through filtering and validation.
-
-### 5.3 Event distributions
-Event distribution analysis reveals the frequency of receptions, recoveries, passes, dribbles, and fouls. This helps validate the candidate event extraction pipeline.
-
-### 5.4 Target distribution
-The target distribution confirms class imbalance and guides model evaluation toward precision, recall, and AUC metrics.
-
-### 5.5 Possession analysis
-Possession analysis demonstrates how the target is conditioned on team possession length and event sequence. The model focuses on events that initiate or continue a possession.
-
-### 5.6 Coordinate distributions
-Coordinate analysis reveals the typical zones where foul-winning events occur. These distributions support the use of spatial features such as distance to goal and pitch zone.
-
-### 5.7 Graphs to include
-- Event type frequency histogram
-- Target class bar chart
-- Possession length distribution
-- Pitch coordinate density map
-- Temporal distribution of candidate events
-
-## 6 Data Cleaning
-
-### 6.1 Missing values
-Events with missing critical fields such as coordinates, event type, or possession ID are removed from the analysis.
-
-### 6.2 Validation
-Data validation checks ensure possession IDs are consistent, event ordering is chronological, and event types are properly labeled.
-
-### 6.3 Filtering
-Candidate event filters remove irrelevant actions, such as set-piece restarts and non-possessory events.
-
-### 6.4 Data quality checks
-- Consistency of pitch coordinates
-- Valid possession lifecycle
-- No future-event leakage
-- Correct event sequencing
-
-## 7 Target Engineering
-
-### 7.1 Explain in detail
-Target engineering is the process of converting raw event sequences into a binary label that indicates whether a foul was won during the same possession after a ball acquisition event.
-
-### 7.2 Ball Receipt
-Ball receipt events are identified when a player receives a pass or gains possession directly from a teammate. These events mark a new or continuing possession.
-
-### 7.3 Ball Recovery
-Ball recovery events occur when a player regains possession by intercepting, winning a loose ball, or recovering from an opponent's action.
-
-### 7.4 Possession tracking
-Possession tracking groups events by `possession_id`, ensuring that subsequent foul events are attributed to the same team possession.
-
-### 7.5 Finding later foul events
-The algorithm scans the event sequence for any foul event that occurs after the candidate event within the same possession. If a foul is found, the event is labeled positive.
-
-### 7.6 Binary target creation
-The target label is set to `1` for candidate events followed by a foul in the same possession, and `0` otherwise.
-
-### 7.7 Algorithm explanation
-1. Identify candidate acquisition events.
-2. Group events by possession.
-3. For each candidate event, scan later events in the same possession.
-4. If a foul event appears, assign label `1`.
-5. Otherwise, assign label `0`.
-
-### 7.8 Complexity
-The target creation algorithm operates with linear complexity relative to event count once events are grouped by possession. Efficient grouping is essential to avoid quadratic scanning.
-
-### 7.9 Pseudo-code
-```python
-for possession_id, events in possession_groups.items():
-    foul_found = False
-    for event in reversed(events):
-        if event.type == 'foul':
-            foul_found = True
-        if event.type in candidate_acquisition_types:
-            event.target = 1 if foul_found else 0
-```
-
-## 8 Feature Engineering
-
-### 8.1 Explain every feature
-The feature engineering stage converts raw coordinates and event context into predictive inputs.
-
-### 8.2 x
-The `x` coordinate represents the distance from the defending goal line. It encodes pitch depth and attacking progression.
-
-### 8.3 y
-The `y` coordinate represents lateral position on the pitch. It encodes the width of the event and relative field positioning.
-
-### 8.4 Distance to Goal
-Distance to goal is a derived spatial feature that measures Euclidean distance from the event point to the goal mouth.
-
-Formula:
-\[\text{distance\_to\_goal} = \sqrt{(120 - x)^2 + (40 - y)^2}\]
-
-### 8.5 Goal Angle
-Goal angle captures the available shooting/foul-winning angle from the event location.
-
-Formula:
-\[\text{goal\_angle} = \arctan\left(\frac{7.32/2}{120 - x}\right)\]
-
-### 8.6 Pitch Zone
-Pitch zone segments the field into defensive, midfield, and attacking thirds. It provides discrete contextual information.
-
-Categories:
-- Defensive third
-- Middle third
-- Attacking third
-
-### 8.7 Match Time
-Match time includes elapsed minutes and seconds. It helps capture temporal context, such as late-game foul patterns.
-
-### 8.8 Event Encoding
-Event encoding converts categorical event types into numeric signals for the model. Candidate events are distinguished by labels such as receipt and recovery.
-
-### 8.9 Why each feature matters
-- `x` and `y`: location contextualizes the risk/reward profile of possession events.
-- Distance to goal: fouls are more valuable near the opponent goal.
-- Goal angle: narrow angles reduce goal threat but can still generate fouls.
-- Pitch zone: each third has different tactical foul dynamics.
-- Match time: fouls may cluster in late-match scenarios.
-- Event encoding: acquisition type influences foul likelihood.
-
-### 8.10 Mathematical formulas
-- Distance to goal: \(\sqrt{(120 - x)^2 + (40 - y)^2}\)
-- Goal angle: \(\arctan\left(\frac{7.32}{2(120 - x)}\right)\)
-- Pitch zone boundaries: `x < 40`, `40 <= x <= 80`, `x > 80`
-
-### 8.11 Football intuition
-Players who receive the ball in advanced positions and in the attacking third are more likely to draw fouls. Spatial context and possession state are essential to identify these opportunities.
-
-## 9 Machine Learning Pipeline
-
-### 9.1 Feature selection
-The model uses engineered spatial and contextual features selected for predictive relevance.
-
-### 9.2 Train/Test Split
-A train/test split isolates validation data to ensure evaluation reflects generalization performance.
-
-### 9.3 Random Forest
-A Random Forest classifier is chosen for its robustness to feature scaling, ability to model non-linear relationships, and interpretability via feature importance.
-
-### 9.4 Hyperparameters
-The pipeline is designed to tune the following hyperparameters:
-- number of trees
-- maximum tree depth
-- minimum samples per leaf
-- maximum features per split
-
-### 9.5 Training workflow
-1. Load processed dataset
-2. Engineer features
-3. Split train and test sets
-4. Train Random Forest
-5. Evaluate on holdout data
-6. Persist the trained model
-
-### 9.6 Pipeline diagram
-```mermaid
-flowchart LR
-    A[Raw Event Data] --> B[Candidate Event Extraction]
-    B --> C[Target Engineering]
-    C --> D[Feature Engineering]
-    D --> E[Train/Test Split]
-    E --> F[Random Forest Training]
-    F --> G[Model Evaluation]
-    G --> H[Streamlit Dashboard]
-```
-
-## 10 Model Evaluation
-
-### 10.1 Confusion Matrix
-The confusion matrix measures true positives, false positives, true negatives, and false negatives.
-
-### 10.2 Accuracy
-Accuracy reports the overall correctness of the model, though it is less informative under class imbalance.
-
-### 10.3 Precision
-Precision measures how many predicted foul-win events were actually correct.
-
-### 10.4 Recall
-Recall measures the model's ability to identify actual foul-win events.
-
-### 10.5 F1
-The F1 score balances precision and recall and is appropriate for imbalanced classification.
-
-### 10.6 ROC-AUC
-ROC-AUC evaluates the model's ranking ability over all classification thresholds.
-
-### 10.7 PR-AUC
-PR-AUC is more informative for the minority class because it focuses on positive prediction performance.
-
-### 10.8 Classification Report
-The classification report summarizes precision, recall, F1 score, and support for each class.
-
-### 10.9 Feature Importance
-Feature importance highlights the most influential predictors for foul-win likelihood.
-
-### 10.10 Strengths
-- Robust to noisy feature scales
-- Interpretable feature ranking
-- Stable performance for structured event data
-
-### 10.11 Weaknesses
-- May require tuning for class imbalance
-- Limited capture of sequential temporal dynamics
-- Random Forest probability calibration may need adjustment
-
-### 10.12 Interpretation
-Higher importance for spatial features suggests location is a key driver of foul-win events. Temporal and possession context provide additional predictive value.
-
-## 11 Streamlit Application
-
-### 11.1 Explain application architecture
-The Streamlit app is a front-end interface that loads the trained model and feature engineering logic, accepts user inputs, and presents probability predictions and evaluation insights.
-
-### 11.2 Prediction workflow
-1. User enters event details
-2. Feature engineering transforms inputs
-3. Model predicts foul-win probability
-4. App displays score and classification
-
-### 11.3 Input controls
-The dashboard exposes controls for:
-- Event type
-- Match period and time
-- Pitch coordinates
-- Possession number
-
-### 11.4 Automatic feature engineering
-The Streamlit app computes derived features such as distance to goal, goal angle, and pitch zone automatically.
-
-### 11.5 Probability prediction
-The app presents a probability score and offers a binary interpretation tied to a scoring threshold.
-
-### 11.6 Visualizations
-The dashboard includes:
-- Performance metrics
-- Feature importance plots
-- Confusion matrix
-- ROC curve
-- Precision-recall curve
-
-### 11.7 Performance dashboard
-The performance tab summarizes model quality and confidence across the evaluation dataset.
-
-### 11.8 Feature importance
-The app exposes the relative importance of each feature to support stakeholder trust.
-
-### 11.9 Professional screenshots placeholders
-- architecture.png
-- pipeline.png
-- feature_importance.png
-- confusion_matrix.png
-- roc_curve.png
-- precision_recall_curve.png
-
-## 12 Software Engineering
-
-### 12.1 Project architecture
-The repository is organized into modular source files, notebooks, data assets, and tests.
-
-### 12.2 Folder structure
-The architecture supports data processing, modeling, evaluation, deployment, and documentation.
-
-### 12.3 Modular code
-Key components are separated into single-responsibility modules for data loading, target creation, feature engineering, model training, and evaluation.
-
-### 12.4 Logging
-The pipeline includes logging support for traceability and debugging.
-
-### 12.5 Configuration
-The project uses a centralized configuration module to manage paths, parameters, and environment settings.
-
-### 12.6 Reusable classes
-Reusable utilities and feature engineering classes support consistent transformation logic.
-
-### 12.7 Error handling
-The pipeline validates inputs and handles missing or invalid event data gracefully.
-
-## 13 Testing
-
-### 13.1 PyTest
-The repository uses PyTest for unit testing across the data pipeline and feature generation logic.
-
-### 13.2 Unit Tests
-Tests verify data loading, target creation, feature engineering, and model evaluation functions.
-
-### 13.3 Coverage
-Coverage reporting ensures test scope across the source modules.
-
-### 13.4 Linting
-Python style and formatting should follow best practices with tools such as Flake8 and Black.
-
-### 13.5 GitHub Actions
-CI pipelines run tests and validate the repository on push and pull request events.
-
-## 14 Challenges
-
-### 14.1 Class imbalance
-The minority positive class requires careful metric selection and thresholding.
-
-### 14.2 Feature engineering
-Creating stable spatial features requires domain knowledge and coordinate validation.
-
-### 14.3 Spatial calculations
-Distance and angle formulas must align with pitch dimensions and coordinate conventions.
-
-### 14.4 Model interpretation
-Interpreting feature importance in a sports context demands clear communication to non-technical stakeholders.
-
-### 14.5 Deployment
-Deploying the Streamlit app requires reliable model loading, dependency management, and user input validation.
-
-## 15 Future Improvements
-
-### 15.1 Gradient Boosting
-Evaluate Gradient Boosting classifiers for improved predictive performance.
-
-### 15.2 XGBoost
-Integrate XGBoost for faster training and advanced regularization.
-
-### 15.3 LightGBM
-Explore LightGBM for efficient large-scale event modeling.
-
-### 15.4 SHAP
-Use SHAP values for local and global interpretability.
-
-### 15.5 MLflow
-Track experiments and model versions with MLflow.
-
-### 15.6 Docker
-Containerize the application for reproducible deployment.
-
-### 15.7 Cloud Deployment
-Deploy to cloud platforms using Streamlit Cloud, Azure, or AWS.
-
-### 15.8 REST API
-Expose model scoring through a REST API for integration with analytics platforms.
-
-### 15.9 Real-time predictions
-Extend the solution to support live match event feeds.
-
-## 16 Conclusion
-
-### 16.1 Lessons learned
-- Domain-specific feature engineering is essential for sports prediction.
-- Event sequence modeling enables meaningful target creation.
-- Streamlit provides a rapid interface for stakeholder validation.
-
-### 16.2 Business value
-The model offers predictive visibility into foul-winning events, supporting tactical decision-making, player scouting, and set-piece planning.
-
-### 16.3 Sports analytics impact
-This project demonstrates how event data can generate actionable insights in football and support modern analytics workflows.
-
-### 16.4 Future scope
-The pipeline is well-positioned for advanced model experimentation, expanded event coverage, and production deployment.
-
-## 17 References
-
-- StatsBomb Open Data
-- Scikit-learn documentation
-- Streamlit documentation
-- Python language reference
-- Random Forest literature
-- Sports analytics research
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 6 0 R /F4 12 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 25 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/Contents 26 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/BaseFont /Helvetica-BoldOblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+7 0 obj
+<<
+/Contents 27 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+8 0 obj
+<<
+/Contents 28 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+9 0 obj
+<<
+/Contents 29 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+10 0 obj
+<<
+/Contents 30 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+11 0 obj
+<<
+/Contents 31 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+12 0 obj
+<<
+/BaseFont /Courier /Encoding /WinAnsiEncoding /Name /F4 /Subtype /Type1 /Type /Font
+>>
+endobj
+13 0 obj
+<<
+/Contents 32 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+14 0 obj
+<<
+/Contents 33 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+15 0 obj
+<<
+/Contents 34 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+16 0 obj
+<<
+/Contents 35 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+17 0 obj
+<<
+/Contents 36 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+18 0 obj
+<<
+/Contents 37 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+19 0 obj
+<<
+/Contents 38 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+20 0 obj
+<<
+/Contents 39 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+21 0 obj
+<<
+/Contents 40 0 R /MediaBox [ 0 0 612 792 ] /Parent 24 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+22 0 obj
+<<
+/PageMode /UseNone /Pages 24 0 R /Type /Catalog
+>>
+endobj
+23 0 obj
+<<
+/Author (\(anonymous\)) /CreationDate (D:20260802120651-04'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20260802120651-04'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (\(unspecified\)) /Title (\(anonymous\)) /Trapped /False
+>>
+endobj
+24 0 obj
+<<
+/Count 16 /Kids [ 4 0 R 5 0 R 7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 13 0 R 14 0 R 15 0 R 
+  16 0 R 17 0 R 18 0 R 19 0 R 20 0 R 21 0 R ] /Type /Pages
+>>
+endobj
+25 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 309
+>>
+stream
+Gat=d0lOo_'SQ5YMAt#:0n.,^*&ag[M+XaXWO%/?VFlY8_na$jD1Y1)G!VGNE;+bSkn1FP']uh-Sd]37JHX1Y82:LX`l^]iBQWfQE2H.CaY[V*6qh2QV"/D]\?u,?oDnIhoB;NJ?-[RsEMT!UrM<-ReRQOMf'dN=3"k>ZB8(l_Sj`o\1/Ad%m;0*r]IMM]\l46jqLGm?2Ki"Xol.oD\#YrJ:NH=[^eI+.cI<qd1/BS"Iu*)Nkg%8e[/sdL4:NB<^OW4d*c,m=lKoB]A_S:CR[.O<4_;r_W"oqLW.aJiMb+)HDjdJ@-3~>endstream
+endobj
+26 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 297
+>>
+stream
+Gar'$6'$UO&;BTNMK`Si&SK+@jm$G@m6Qs8!Q:]e-s;l9T5=s,-'L11S+_2IL-_t%SCI_o)lsPY(76#A1'R9%Dj1)GA#BSAb4O>*167AGF/F*a<:7@/UrW%@+WiC^Qr!bWj>bWSS<+QH9V"X=l`Mt%TKHb5&?tl*,2P(4jghX0COEP9hELhO2u_66Vd1)$Z.)c.kjRA:F:&](C[a?Gn.J1B%$W0MdbAR_g>,-ojYA2JU_G,9rX00B=2X,TAsl4HiRjB[]sZ,(G,X.*rNr%DhMo"3=Ka$A66Z.0'^9Sp~>endstream
+endobj
+27 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1839
+>>
+stream
+Gau0C_/A!s&A@6Wk3*SH,#XXV+6t`fN2C8l$g=FR'fd$g??2IiV.KURh^g3ZE?lG\?j):^,rN$8n'.?2#u0nBM>u`RdFFCD?71u5[(N.Z)eZPU6D'Sd^45@=>fI#4nY1M`jeRql99O:<ECnhgSlTt,<NV[d^X2Nj/Us%Ps$iO7g[b`r02j.8g*Ei3ojP36AJ4(aF\9bBP,>4S4T#'L$XMN<d(d/hYKj<#8fJeZoVX:nr/g8j\j_L&ORW)B/F1kohFJE_O0tT+o_FX@2WtCCgU=,HgC@hVa)WGPRW[qoZDV"%koQ'Aq`'`'^Mt=95-TC\]GXD8>`@,Vl"BVPGS#SnU<='F9Odu2L1SI`$jC?@ML8o>^kZ*]D:#g@D[k"9el;,@)r#<t_:"lsS1>[p;fX;>iKoO$>C>(fG$!95hI.D5-gM&1V/B(goq&j`O;i$F)&;4FfTJR'ljfX!P.[gii8l[b$2`Pc==3C5%O32;gZS2ecOm?W!TBQNkVfBtYACU5;$Eqr0q+reJ++26Y>GVkaGiNT4.WDh^5=;Dd@lNrEniWY[(0K\VQ\`Ng3TBqd1%%#o6:Pd=dBK6G)A.+?*ta$4UqsX)6O1m9W-qH&_:KZ8[j.(rVS'ZY,r-`"credb+FmDD&_tG:9n:5(0%<Z\YG&fDe]J@=?3\kN.me!"m#A0,3sqC\s?]#:c[a9$ttoA_:P;D6-*KaBQ+2&F/)unUef^,N$"9uj74$TAg@_p?H4<9@8_/3mZL<)8Je%W^>&>n]^V/M@l!nPc!C_%Yf">W9u#T,(bcMdKi/(XF3W>I;fJc13`<pTdP>[!DsR^#ONfFc5iDhPVKCSaIQ76[_8t'H)h@s^f5S)Ji/3!%QAaRA:9.Eb6<\*"CT-Lh*X^&l3Lgc7CCjUngc'HZbiMrJ>6fTcXa4a<4'&%D2kJ4_lM>UdZKp/YO3e+g1ENtO@cV@;0(HR.i4rIQO0/8!AX+c,!N?R,c<8V97ku)_"uHQ@,2tbDfgeboAC76]KlC3Y&M>-J+SaF/2bf9jrb=f<.is^63BAUeo?$Kt9X9lGmplk:C31/-"jF!dE8ZB=Yd*WqcIbjh[F.'4H)6M10m6cX63E-TgIZ>?GO8+t:/]d6d<OqkW]2tk5OX;.3V4p<UR*#JSA`ng%DamY6S)`(Hr0QB>#U5P4CShlILLib>mqh).<oIs#G\T;e6mgVlA*h^Nd?RsP'6/hm+ej?N=u%;^?r\rio5W,]/U)q6>b%.n-P6t>aks(3X26_[:m@YV=tu^RL>o`>?GCegN`W$)VjTJY\9l"g&%&K&,s/gIqPt:2<oqg5_hhC_2NuIrLdMK/*K12lr7c)b)?'W<k/V;\gj&@Yl_'6C"IVBl;Nibh,)^IJ2Sg\6@G=5Q9JNcA*LV`Y6B/`AX+*(2hJIDQ]Fh"Y%lJk:dNAs7KZs;X>l]^A&Z(<YH.F&YcV345b&26l_@r&n3>aU]%'5+Emhe(=(Z1&&Um\A%>2L&?dbA&f<UXF[sc!,"I%Nd.oETsiC\2s]MmV,Y#KkbL1dHCTu>'lm&6s[ZIuIS4#(&[TAQnGjZ>s]esL$-osT4TL"<!I"=fh?UV^HtePE%[UW;>Ne/<>?Fae#Ij03oO[aB*lc3E[+%d*EX<ZO52>&gM_1jDj(;;_uQCZ*/6N3nX8J:im2<tu5OT[q!sTHp)B`VZMt[QgqPG/lJ--92:[i[lS#V:a<_?\hSV8hOYf'aAROI6@<tC]Fm-_>U9l/(._Z$kXl(0JT0\aEQ6l4Z4dQ5>!DQY?mOr38N)2,+KbMDTYrm#>TJ9k3jlpkDC@@;>R=c,F<>UmQLK)m4@<o[hJW-5?8(&)u~>endstream
+endobj
+28 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1594
+>>
+stream
+Gau0D9lJcG&A@7.b\a\Ef[Zl?pQbqdCk+/'9t]-%*_KA<bsi=GP-XD'h\f<i'$$<u!_*6@:t!S#RGiK[LCiBNk[&N8E'&[_T0`f.Qn9FSL'c'f_k48nmha66M7X<-YF>p0*&]_'0H;G"#p^b,>/96a/HmE7_sA>drh,b\5s+JiUB&:73Q8DAXm+q?CB6h6jMRn*MhYJC7`-)2Mb7^,8hN@\@%lj*.P3EtX]4C4Ile]AP6`>*ce\7NnEU<h)>RYo21Z,^El$NjkC\aF93El5X@6iSZP$:i[t*qIW`4h5^DUG11B)A!U1Ek#J.Zs$8O3n;6;s6!8n"mlW=1Ue@L+Gr>G2LB<iST2R;')Q[)UU!J64?*U0`b*4+nQuCX&r*OUNqOZYgm!$W.hTPH;?7YFo9hYNYD3iH'7Up[6j\*nMsHh,Q8tc#%QN,_lWiRD=<Q/]PY/Z4rB.VCB**=4Db=bEu%nog9macTPk;HcL>/,L[qOZc6.ejt_-LK"9M`9N3>If<TGKNPukT/%HP7]l*t"`);`-.]QbOkRo@<.l;>?+]EP/7+q3-Y'<kN.goFR8f<9#VHS"o&,rfI89T^;?`SQKnWIt&(RVC?DkYV,Fao\e'e4nBm)m.6kr]&K<Oqb<RXT260\TU/,kgPZ-tcn'K94rH>Q,/RirdL\IUW-[`19)Z;,Oj\G^`.9PfC(?H\d-4;0k\cXmslUHtfMaZntRo>Se.M]ba0m4sQ*=ph;^bNfChn<EgpZZ5!sT+,o9,E]t>2n^Cl.G'n40=tihZQ>_cL#;Qe8#c'>,)Nai:Y[iGQo&J02OI0>oa7a#\bE4"gFQLN#b8@*[+V>O[8-F.<H]pE0NqQ:D'#oD!1r>0++l(WQKu"U&o5@rKHNOQI\W=eEc4=U:e4U<e^HegN1e`.NO<q&$e8<bB2=:`&0JX'bI9(-P)+Yk3/C.`LnHJ*03d8n*5;17bmA18X0?;:O][Fn84_^k3cdL:C-ZStjZ;:GGb3nFnG2JSG)!B(j1L(o[qWEnAM8$)<aVi<6an-?nN`7GD&p%Ls#ZUGJ[$?eP@5I`t@-b5/*W?&<#t81qkt.q`bj_qPGW4q'.MI)ohb%RHQ,8NaKs7"8L-EE#,l*_A.`OdMXo[R*g&]"FeEcII[!/m7hDmFZ.dBVE_#H@XI2rnXWEm%S>Gdb(!mR7PI-chLD2,`FE+<PY1q6o1Y90GM/F3bnmP]ZPD6deeocf?i1EpXpT851G7[PXcS5NLAg*#d:'>?,tDu(=.I95>E7aa$U8D8Z?n&-*(O,2-`Js\^1V5/0s7Y8cjTiKJoZ4Yu0J\0V1rVo!a>Fb8VOP&?F5iZ,_Go2V_8h1]^@Q`d5RM`\X)aZ][],E0V2I=H_IVg.mAAL3l^I?NNd%DN-I7Q9R6<7m5hl^qZGUK2?l2([;2hal_Z0%S;&s#J[.['J98`IF(*Cc$IT;1d8j/9<`?ZPB@b0A!pa+EGi8?L7]J?)$*5SrDgHp2AKn^F_uZCJ:XIWaSuN$s$hX^hWi`*U::Oj23(f([n!h^eQ=ih1ZWXKCk'LN':/!daW^2n8\Xc>BQFKDS1SQ,UC1`G:mq!=9Q,!GIPUe,~>endstream
+endobj
+29 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1357
+>>
+stream
+Gau0Chf%O5%"@YP_8k>so.9otSNU;_!tOO'4Y2Wt<lJJe%CVNoEj,H18',r.Arb;M#Qci>XH4MgOrmg2+ha9?>LWX[(@^'#$s3Xj26\>s?uZQ5MlXn!rlNqY#_Td>5f]t8OYR[tfc60CI9OPLNgC%9-Wp9KMdPi4+(T#o4UWD@,BA*QaCj^SWq*9Qccj+-j7b+J%[bObVB8<fKFh9"c=uL47b6\^\jEQ-NSLlJ6.B,<$uZIUhQ-^L[hT\g?]%ICQZo%q_O>%mcZdh5N[RligG(][i%$`kUOfVI$RN5NaN!OW2@H%IrUV9@]`.f\iuR*Ls+%pmL)^([ek>dZMi@i"71e3AO!"`*o0Wdc1.qRUK<XW4&/qol<IlZ&.p7p!S&3L2-oS;0nk#oZ6`G=Z<g5mt_T"he9+>[9i2.qRTf6qgYSO0lO=%HXb8-f6VV%OOI%dE_iXb8bWR3?#RN`<sLdHG/AQ]S(E13Zqi*ss:1O`N>`-DVIGII[*hQRW9626*&e)7PTB&A+*Ma_%te]Jt$'ONPK_>'uY@+/eT5sYi(W->HR`udg=?8.DUph=_!\14IJMMc1dHXG8q?<QMuq'&E$O-0..Y)M?:nX<1X1mj90@ZpBHs$PWMfbbVS)E</H[hVg'1ib/eOR'AM73X,'VY^QT)K%-Ko>oIa`lAjOVbZK<(Rpu.Xi7W;@pWG6W9h1%*+CUQS"k\'YVH"6q+$*[O1Q><ls6N@BSrgtWo'A9QRttKL`/itlg5Cp_D5._\k>EF==.a2^RtXs'oen!5'8]*bh@I&Zgi&NB4ira6=8Mrm_(5bq<1M5j4llJ&!YlBSh'l>]r&^P'qP#]Po?d1U`uo\Nfi9c5,!;eIi*^<?Loc\gSZ%BU,&ZRqfJReV0tmGCc;&LMWl)K`d0-D?WQ@tFtMJ6o2!b!/QZ&2VY"MOc-BO1AoQQTb9/<A04@&UejNYip0+ef=r?d_]u&T$G(IifO94A=ViK&+1f@1j#4QIWJ_cC*=qoaEL#'_"GZDD.@RKCsVK>Jr/d\p2DmnqF1+6D:Q.6?j$IXh>$Z!^SFHdj"i!p?i_-Y4meTPJkNKX,$g(U_9S&m+5:CXIO@1.S\1(_it_[T\>$F^AM`D%6!8?<K^]Qe7Hc(AgL<5'Uo>e?#948M\R-an<s^(KR47d>0tW$*'02%;S\7RBNT].Op-5s)o\_Q_jkH&Za(G]Umefm1IhIpGocimchMTB5[lRE./WTfKEFVJlFJ=EYffD,'W+QhB7L+OY^P?"/B<)*]^9#FFSf`Tk9t4AIPc4?g';*'ip=i)/Pd]--[\pkd)(JUS%(I""*:KC-"&`U59`j>jglo),SDI<aTR$s3H1T@\@J~>endstream
+endobj
+30 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1469
+>>
+stream
+Gau0C_/A9k&A@6Wk*R_?<Kq(:c7RjHJH]4b$[?Rn2@N#YCai3n.6HeGG=Y<6j2ap\Kb,A`/c*/K2`#Ac![7OSpR;lt^FeErh[,AMQ7F(t&B"&L\6iQ*?$/pYmQh]6]*J*hkqH_&"ED#'33c6e\GetL*0O+%r!/P&fY`1^:4G;2+UoYA]fO+M\s)g`OQ2)J^D?`cP,9V"diJ)0+@ld#KlEi],E489ou"tj/&\3%PBf8k\/k40iE!T,.eC]N,br?66D#-:+j.fDJ'@G1[$Y(]1Lo"+WU_(#Vr;;D\'X=3L=2N+/QDO5]G!=DD$iAg1IG6'@B/hkaD<Tb/9]BQ#/*ooHr'!0q@P`b]6#$5*%^#`;5r9rdK!4O.8&u=8ZWECF8S5unp$o%i+L4+r%J/Yh-6h2@6(3_l:dGlE.<bmI)K!1n2"#%)d\sTk,%():<aZ[$r5]uri7riI[P`ROU6!E!cN+h?,oU@#QH57\V51.RS&f[E*6rfV,9L_I\f>_=,dF%B`\*lq(dsHd<HPt^b8nkfUeZ4hdT3$%]QgL$!UZe$BpA\9[9?)fYH>pds/e^HghEVp9lOuk_:fC(oS?R<61s!hNZldqRC*rS=(P$]/<p@i;U9MW2*;`$[eY&_HfapM\b0KO/MSW5%&1]8V3#)ocmt;"iPCrDSQbG7e!OH5$S6<!<"bAhEOG)i^)u#^YAkAL-A5'F08d^l'tcoeB5JGg>L=:3&OeEW+ig)HIA'n<V*,CQOJk-Q5LNCY;)52.V["L!+5-!-s*,q/2T54C=`ki$cM3+lr&MVUC:L;8U-!-%#)c'K$2A(;e%6Qf1nDNH_#H<CH>,eC7HbC"Fgc#$7+;$g%bMq)D?\QW"c%Ss3+@lpM,?-^n3&N574[40dp?sA[OO#;LL-ulg(thHcs=5R:*JFFjMMFX+I1S>WI7&,*g9t;:dh0KJ[qU7m[T<Upa5.jqU$_V#J#&M*?W?(Omd=WPr@WRCp[4Mf:rU..LV@:CY)YC<X5r!F2'4:1ZL$]108^Z!4;U[onEM^7n[%$"Skb./RK+NJldLo=_J8k?M'!=-bq&UQN=r^e%odU.SBi@PdfPT3gSCppV9t6OirUiS`6=$K'P%_\KZfK.pIso)tB6FpQ=HGkNc,,\da^kUa^[]P^,l;c0KP9,%nL`-!RI[A>_j"-uLArYe2$Cs-knrH"TCkdV"\Hq\lU-L&S=AT)+N_70A:dLRlIP(nUIL;]d8d@=nB!IDh3JN`?.(JR/3>p"7\j(!GrE*!IT"tSm&b7mKRY"e>kF<.u/DV^<[[lr'LZE+aUn:MLSF*tS1d%-96p,ndKGAkBf*jGF?60=Lch#oq1r:As_6O4Q7^2n>BmQChacuRLZdCCS$LBZ&/brMptlQnJo;3hI=?H$#F40A0Q13f"_m$BU<\#U")_0VKOE(CPRg["PaIeTPi+h5q:bOeus$+Ead2^99`EC&OJIs8^$C&~>endstream
+endobj
+31 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1384
+>>
+stream
+Gau0C9lK&M&A@7.bcPcFGkGXk\aF?5'PNDA@J&%W:!kjX'WI1Y?2aX1.EPr%l'28o5Q[%iN8C%l2bu.rp_3P^Zip.dLJP*.`!OYS&81#3k.egWr8IUJ]6X)dd<O5Ji,RPkR)JMSbF]rI]%[iehoL[@r\Md5_u(>Fn6[$1IsN#!*kA(k(ATc"3fFh?iduQ(9m:O9;N<*a*.HG6=rX[Q\>5iOfMRZm/CWbb@:5\Uo/pg704@'=<_p!tlbNH<kEhk'#JmTo_mGP%Rs8m*)^[/hVIHdZm(I"o2R)>`Wg+oB&ERGK7l5Y`@;+dkYF#JCLbZ+V)X*W')aoh6mYISJ4q,ChAILAL.g^gLQ!Hb."jq]p><E:f8YS;@l%9L7__#-r<D"'4'$HqUdW!r+8ZEo!.(LRg55;qm@V)Am&P!!*[00*4_$c$Y\UcLZ@$>AiR^K[>00koZ/)P"I?\p)u75,pr>QloWSKN@qTLkHWkJIFA3f`/0NX[F=YT]`Q@<cKM:<k/H](8S:j6X'<);&u"K<fh3Wk%4*l`fGD'F%6j/OmrMQ^Pn&&mj956#!:k;t\mH+I[jnV:r-TKhmtAf/l\K&P5B#\/C'@B!Y&GcQt=[pkK.,/6@QdbOb8r%$=]DSI[!o\'JZQ)RY^T2Zl%!23MrIO7E-EKnF+kZIk@tln[r8^ldrj<`073EeS`@*.S.2c(7QE>H<Wqd=<>I-<LlB249-V?/d_q="^S(^L7!7gh:4_j:"d#rGk$nfSqMuko'r>eqeK:n:jb03AtI+WJ9*(MDOP/craON`\T$.I-N2TFOQ(<OKLFTBqhq7:#9[P#LqbA(W(HlZ_f(?gejqm_$APfDd;oi.*gAb"q'BamqC-m_2%">H>tp<JhJ!YW!M,(1qo_NgBA[RjA,s&g7mFd[1e29ljZ+)#Y+B47u+M\5.&.F[&NH4hR(#mMXDbc(&N*%mH;iag)%<ZP$O?^A=B%ErCId\ZMS^ur@e1NJoHR=53UfRi?FXR:!^!B,YDuYruHEo8+2`SDJQ^].*dIS?V54'[dI%Wm;Z9r_&(-&2ZaAWIbcS!N'Jq#'Y(hQ&R`4_(fTnT(+`H;@#Ipr`ITOST@p%uUcd@sA;QcDU(\\HkML'8mab\=[g6_m4H"-_&C*doG1ll7rP>PmpJ%0UB2(daV)OeJT3&LI]Ck6u!_6=13SLaT;2M@Sp.U+Wph)P,0V5eX13?tUCaO3o@DUbVTg/$AN.>K8/?p`fnj`4.1VL9;%gW&f:J&!;dBN=HptD!G+#6N:'&V\&Ec`-]mC;"q'?h&\>F)Ug!*l5QkNk3*Ph,[5eK:/a1p6YBVQ=genVB),\uuA:-_V5PlFPR"iuQTS,54c8%K*r>.O?h8:T!_<VsM:<s4#tFQ2~>endstream
+endobj
+32 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1451
+>>
+stream
+Gat=+gMZ%0&:Ml+bY,4t_Q0Lc[cIR9kdL#U5_6Ls*s9H?1ih6kU-_b_rV&CL,Y)ib3U6f=i#t+I1G`[`4tuj+h;;`Nn8/>9(I%TpX>98i07qa3E4<E(^1g@)mXTS&F$O3Ld4t0>0:L-/RbH4BN0\jD&:]GbJ$Ae"?N-;`['uqAB$;/>)07R@l"X]>==%;jiR&T[E\o#5Q;VMJ>0$c(ilV4pfY"J0@V7_4kRgrYPtr@p3=i45D%-bl/d0IR*qQU5Z77`i$Pl4LirR`mn^`=`f42T_=3=i,:Y^K'*]6,_F;lu<jm>F<&@aGe4B;Yb0X?[RA=a>hh]`ou>Bj09%7VDDi<[b<4Fr27;X82F%B?RlKD*04Eo2L+CZI^:oSS7_q*liBT!k:*?>-Q.3)?1O0L>8)!A=p'05HY\P#R<(c"m[Z*@XNJ8eEqiG,/1Rp?7==_mfe%r07;d2%+:$([8Hi"3GT_LcHc>*XO&tE%iN#Qjk9[/gF<i-46mc@(=p`JOCY?jPZ]9=m-#Pl'P-k[JYUi4kXMM]9mI)RQ_PpCOb`WE!!6I/C3F<d%Qb=@<@%;$.*2)?j^\X#"b_--hIQb_sg#J]E<0Y^E4s5pLVX.b;]\>_Z)cZdCbVA>ZlPb*h,o4[=aT;op$.d,!0nNj2l?gCbZO>e2VacGjsO09S[)g<>p1f+T.?L:T$c$]>gfh\W)b4l]%qDKQn&NMn^lg?C&ZtVI\)F:!qGkA`&,s#QM0!4$@6B_-BH/Vh6t#b@M*3aDI@*?C8X'JSB'!_CLf$m=MbO3ufP><!9ROe,m0/#VJZ.:4bgT"-J7RRMsV-.#"VBnlTN1\9W\jOd8bjI@"Lh&b`cIBSi1HO\TaFn_@mB02eV8>k+$u&rA,jJh@OG_S9hjb[IKU9')C-VDtNH9m]BM(cLqlQ3rI>[PS+A?#mo24e]eg)daeFl]oE!@QEYsi#T^NO`q<#EU='b>CA`Is8:U`BV6GOn.1QEi>*1kf6D>;>4sTtTeE?$VY<eDSa*LF,-10Zk"m8WhSLXUiR@[^mu4GLKbr7$&''ESkV1&04k9KhRcef.h\)TXZ==\"@US@8[ueSHCIQ]4JZB>SNnY=>0eB81.]VpK@RH];lGDNr1=j'4"LIll+W>\kgf_W5N`Kk[B!jij4p3[VGD6<cO3O:<p1UPU7X.<%['@ep+q*t"W`AR0I?9=e0ZPM`2R[^)(u3loUE2''VBU#-,)W\#3AD@Ck[-,$@sYL(e/O(Sj3aK+T_/>??16Ac!3"'h<:(UWNiH%i?>f@5Ea)0j_g5bI8E)j,]JR;1@;IAa6R`F<`Y;'TAIBjTbM+Z[UJf3nqS5kn;aFYCXC<i9_&;?1qhWW1YPEq4&3QIMctrge;SB<_plb:Oi%TJ0R[*;/8sm`%Zh.E$O+StsR(pqG<p-;Fj82nX@K_1hWMf=e:8o9k_P25-^s*C&^'Im~>endstream
+endobj
+33 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1590
+>>
+stream
+Gau0DgMZ%0&:Ml+bbNW6N[7?4@CO$q2^o)UJLt9&5cYZt--BgEOUarCp'1?e%S=c^&t?.)(dT."Uulj_bR>.M#CcgPR?dh;O5]@NJ09Mb%RJU)@/LsKO3d7>lCFX)kd1Tf"tg.gN&V*s;1AjKcg6tEqF5'2L?C8i(WJ\,_nVt:k&dd/]qJ;\CE:#6BA:l(2_n:43?>.X1ceiJR*pYc'XWCY+9aG&">VI[P%L@&6o/)l.FFF!6Z\uqUdX0oK'Om<=@NUPXHAZ=;;s#3F@j#tKja\4U<Si5hjE:N7A]27BAU;nV]Yd5$$Wt%,@jplA->Kp=-@7.dLR;O\1rY@1EPL"SksW/5:!?Rm(apKP4O/ip^rZiA00@bnM*W7p6lhF6XH87h'@M.ER9a)(DH%/Hra(IpaF(F5m8pn_oSr%(E9E>(o<=WKshO2>f`)4JkU/ec%XN'c`V:c'pnZRF*sonH%BcT;G7P9r=F-umkJnhLc.-$1W=o8A;[T<8O7Eg[#u]$,^nmc]AZcbpeX>8pdmB5lf@sQ+QL:H&Uago&&'chcJ_R8]hl^s6fZcp`_jEu,]0+'n#-s8SX#"e__Pl3a8edZOMa*?$>Fkg--PYp"U6X_U,>M\%C1<*A>\)M.l(+^-$!-+.]8GEbRqZckc6;`17f^IDrVmo"2@pLEW8]hSI*E:)L816Jr.qMQ.K;&0*CgteBoQ*p\.Y7rg*'69`NNDgVqZTIP_I/BDtBqETVa^=]QMOHTsQbm>^VqD#a,iS\=1+LILA@c27!q(rD88l(rY>`U.ULc(gq<5Eb/(X%'54l*RAt6"rV#$@?j9Gbsr`:g-_,CX(p#/Jb@cn=XL+&/'n6:$2m\'oF7D$=qoQN1ai_m5H$*Nj#GCb"M6lYj;$r?Q]SmD;3)g:IU#*H'JeIXKSg[fo>=j,D55;dos'aaHB/46KQ?bMG\E=9s5?M=Be4><T5QoJmpN2$AGaJ[a:<aUI?+cA+WoY!o09$L>4%Fb=itUWFBV&GYQd,ngR!F%0D]iPV'72&AJT0BC-4V\*Nd9?eC/'a*\>\T\a:F.kT&hX"N0Frm&V85V;glr_HQ.)o9XB1>7[5>MY3cYNHnIeErNspI&Vjh;o%qT#bn@<Ji8;??-m/+UHngI1#F1rrBg3n[t7H8!_CX%l$TE@nDR#%X4EUQb$Y2^psKpgmn+#lULB-3;]<3rb6s)!@Ld&HhV'LPZ=]p@\AbpEu_'B7V[!0%Mf5l.&YM_e:u$4FW?srlhDL\nC+HtEYPs1%d(\<CO&[O/Qj@L[XoCs+BrnbZLeSj]=jF(ffc-)m;7#@&sm,<f_#po.]gXmA!QbP8gu(e'5r+4S?,]?U6"p8Gm>5g8ailD0O(bTcTrrMU;D>Y*0(37V$4b@=m#B5(r!%$TPYP;3AhJ`9-&BJo(I`E0\CXu%JlXha_8!mrdS]nP*i<0+ntusg`(r,4JB6DnFm_hkNC\Po&E*Ijo4s*q$jgFd0\XsDXQGd]lcM&q:mBEFq^I)MJ'la+(;I,%hNk1(GJ-[5?P=qO0Es,3j>)(prRpTH6!u[a(p,-E$L%-''qhB9NIJC?;6uhq(Dc=r<He6$+p~>endstream
+endobj
+34 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1556
+>>
+stream
+Gau0Chc&Pn&:WfGfU'n1cJc)MgI_7g)1I7N#FJ(+D^c46Q>I@@E[<_2s8&m/a4KAl!LWtC"L$CgX)D(OT*"NP2mAog%</S(YL`dX+fo\i+tnPu%4kO-s.&^3F1^@WZ[Mqo6#S"A'/,fo&1(qrL=7Ft.-gd=X1r*9S'h3K%;jW/+-O2)MDF)3AFY.jp_Of(2BLbe%?8icAOTq)<:F-"O>NeM6U@%Q*_B?4j$9mZi@3$E&W19L\,sN'ZXU:teg,ZQ]YGmA1E_iI/b#NE:UGEO/Kg8<)04,*b1jpbHJ]:Y8-Q!NR_EHN&a_*K'RBbUM5Ji>$7NB`BSg<_s8:Dl<YRsN#cV$g;:-Jo/M?qA,bYU6*gk;@KYZ5VSBg)ZUa>%8DCCY&luC,c>+rn!.lMZBDu9)sfZ=Xm&U%#FL2uOQn,g+s7(3GVU(pBs$Cq+5#Rb7_^RoW=2uN-0a/Us&c"I84Ad9_;E;rmH4fCQ"-?jkZ>C=Z,?r\:#.cs&aK5WH&*K*Rbgm40\Aaq<t=1CK2KhmjcrcLYpLARiWg?E31oth<JicslOCM"QgF3rLK2U7S-%SV]dX'*8n<%K7@I=P\C'K"poj;$XPg29@-gn:O;TU\W%j53Vg:l-mWDo4K$^+8WD@%4qP-;r?4NMfjg0am/N14iXcn)YYX5j,b^+fu$YJXfSoi'CNRC]Uu#(ucaYA#hH,^0grb[jNChW-Ih9a<O(!D;XTXQ4&.RN\$;[o>(L8TW4/4l:^$Z1mM1<HMd\rOhj#X9qQ\Eq?Ta9\c"nB8+?Hlo@jgJC5R!Z[hjN&qY5kU2+P:C4.8GrUP]d+%kN<fD7(;b\Yq"JCmn_A)s$J5-muIR*L_If;4[sRgC1[.K'DpCPa`/[5IOSKerNp.,00:HW>jb<q6\M$pXI5ikV[WoF^*V90h%'S?-uI1Zd4NC2uUSV)7S!D;E#=K5qF1X.*8$,R/*A_LRF>M\MGp52R<__emt2e7ua^^)dhaC4U_(Mj5G'+nOM9P,kTo/j$57-4Lbt+ad<dAiEhqC<JkMs4]q?ors'/MY8ab&fX%]e)grE)Fl[[lfk^%2)X7O`^nXYE_Ngk<7'!rQR!>jR*lCh11a-WTA$IWA"\1PE*CmDuJ_NK18:aL\mD^70=CKS"Ip(bR2tL2t!ErsY*"?PD^pFV#Jm!:4Yjn*^V^7HDDXI^f!.W;GG=\SI)s"hSKg7f:g"@HdZ+`VZ%Cr/1g>W8ZZW-I'kPYdhJ%8kt=^Y"6$,pZ6e[r27=6hI04K*L9'c61acF'^\YZfZEh*Ta0qQB7oebuqj[GuTg:nq<uDcZ3$qB"B8WD*P&&QM"%,.!'B2l'gs\k2#Y9`VN*+-!<^Jn[?i.>)kc$oc(m$K+hO]X;sY>G<EjEVbaU;19:6mis5*1a*mpf@E+7PUP8eZtsH+2;D#=;`Ui,Nkd,`>*/a:oS?7V&3=N*i5`mb.RYkAo/(=S*5&lLcc6Od0k4\Y$otuZMop2qYq[fd>]_8uXukKT=NL2:L%pn,/P<6+"WWN3c?Rr%b[md8)>7:XLlmJPSU?BN_T@;[i^8n~>endstream
+endobj
+35 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1340
+>>
+stream
+Gau0C9lJcG&A@7.b\a[Tie[H<NbqU&$aeQ&il,5MTdAE%,)Id@-$=_9%OkP#CmD77(dVVdP%Ni>50c8&nF24c^KCa0Bb!'X!lTli&kFtg@K%!*cS'`PoN+q;_4+-q$b/n,(m,V1_Ba^e2HME=]V?t]K_u/J8!nc[GQ3;H2Rg^J,bE,8CS"gqX6jjIpa4/.//ZMa3A3+4!-aT;>]EWU$,.'::437q$$OpaYZlT)1%O8U`4er.jFiCfeOl^3&2-l-H4>jE3R9P*@4Bq$qM!P:Slr01]J.HXB"FgM\V<dKN1q]FZ6TCBo(I>8iLXVJ`u.#KEI1/Gn`+Nc3)[>@YDh[s5p^PPrh4ipGffUsZiH[B)19!_RFl)mc%d)V<7sGW&^6%]Eg.maItW_.8\=ZU\<nLa>Z8/S$l64GFbYi3K5>4lKC&@g?TBmk1f?/n;pCC:$,#OFb98C8;LHSBWps4>5uEjd<:2q91#2eWHi<Kl>A*^b`>_<L$:qXTUggoo\F[(D&boST86S7JH8TA+4>R:uZ+#,=1T7`KPdt![Od@+gj$#=,gtf`gN&RW*E-b,tZ,qqO.\e%kUDtb:qV2Cp;T*>o%4@GK=J1g\Kstg0,K"F,OI&EbDP-2UP2WELdRHT03QVWgdo8/XgUEYncPdt71K>-L[cT9":MJ)9jR!4@g)<5a<CJ56[=&UiqGVVrSCT3;+B@1KB+3aXAjmNa9c5s-PjFU"_Mh?O4VPP/-EGf?B-o8QmG#I!H:m)O,j.O8./9ejnQ0X(Us__fASYI.p?Z*_67U1*d)&HT`(F>AOZTNLikkuE5#k_[K9iTFks@Bd7-SAH%mn^Hs3BGZeT4I/Vm.u68Ws"k_^&I&O6hI-d3?=b)Jd1>)OC>N-kn"LU\'0pU=fZ6%aC>D1PttTFA]=E9Adp`@(b]^?oGi^"7sm5f]no+mn1b]1V!#$Zp7ADF^am>LN,<uGQRn"qG]8Igfj32BQQ*.kQp0hd5hCpNn/,jNICOkb>B.gXj)qd[!'?'0Kr7=6$c""_-p)I#Lum^EF\l%g/uUX,q&oL[nP%?Hc7Z6\u$4ggmdPl1W&`Z1M\rd70PK;Ok?e_X=cEN%/U`GaDTR0\@"1](23]'?*-Hc/taIQeWf%mYH::/oD1u*Z!foQ-HG0ciScG[MbJ"a9A:'tC:C`lGR>J0C5#&)-q/&AN6-i&[YA%-@qALZ]C.p;hl$\"h>k,T,DV'3^,KR(1&nWQ5N@Y9ZCGtLr,j>*_e8>CgY\./BiTK?^?#?W:HR-a*PSnt?&+J8;t^F=RE1FZh&Z#\F%^%1i:G9lUduDP/HMfo$9WaF/%b(<#O;L/rrYuK1ed~>endstream
+endobj
+36 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1341
+>>
+stream
+Gau0C9lK&M&A@7.bgA!T<F;'RhR8>JTKj;f>IUL3"\hiP]9K6?WFVQ,h]X:+:98Cd(IA[;-E3ClO.:L5#X\HIgaB3(IbMRJ+!ZSNfTZrD5mj)gi5=^>b=t4-Fq\;GpCfM+oer+E(8RuWUm[dU?u\tc$r)-TRt"l<]j:RU)B+oS+_5BS'urX"VKSm"n3=<m*1kNfNNL[KB$]BGUDTs52aEf9\-<#2P-qi1FTK-59U18d0RI7o85a,K`1MqVRMAZ@JdER0Zt.+^M?0c%35ZH6GIW+Bkq*H==_%)SIaMo-cud_TII#a,'[s-A)B\%+CcS4MfYN/<_e#t+,5+8i9C-SE=7b8)khlUfY:7S6+!kpI893K/a%-mJ1#*j6_kU2'9-GDUN^DN,FS0rBl,P1>8ef(5Q6Bk^f,-G15f!lf6:2a.`t>1g5AFIr<U$)W8-8SI2Q,_86Rc5ZpW2Y:/>kuJ([l>C$a(F7%N70hkecmc"jrd*S3$)O7"i*8i&<Yli+Ird-ltJsL%]ku3HIsi167&\G'kP?$DR9!8JE5OYDq%*++YPKl:2qbAX7LGhob[J/9d6T[Yas,Zs(/*eZ0ADdmEoh:5h1ib_t7VQar1g`ht![6k%m=K4e@'mdM*#q1FLp)1rcb:CH0RgE<GZWo,`hb^5eF;)i%cKCOd!8<#X&D>gNiC<MhpJ2G$"V":BXiE^50Kk5suWJBB1XjcGj+C4^$s'#c.XKWgU,q'>K"$>ce<lPo!QY9SQ%B6Hd9%Z]ZDVZ\3g7;WbXLWuQ,jXJ&?B?=>,/h;J?YR1HL[ldq9,+Tb)>/?7Jo$Cm0^6TT(KJZ<;:rtud<QKD=dE+K#])4qe=gY;n1E)q^#@$pnk7ag:?_CbE\Bl?,qmB8MdW0@Qbd$6[m]^5LVTCka_FNCPNA'_4f]-tWFu[:]ulNaZdk&loYdb\SK]s7/gVuZ'W6ENic$gNZ*tSlLHfl\]P=8-'"\b(pgXTifjY4?8cDdG]U*co]"3kY7e*ZGluAWBKtTE.%K#V/^'EAl#Huq'=Z.5_m#&0hRf_];n2l$5P(#\"l#e$;$;U3Y==UtdP&0bs&kA:rkp%LS3Pf+E(:CBHLuM2YMqq+sM_1K%iSDHR:EqN[>t_-5T#0;':Te[@0gmhXXlRkj]CJ^Z_g+k$4UmCplg`M*:"1;:_i;OQY*d#G+'oX!=TTi#-4Cn+Wh"#H3t9hLHtHFFn1nZVX1uJMH>On8[LGUWFaViXBW;oM;.T'J>i=_YKA`kb;**Qq7<&sa<[3[FVsOmiFO(DkQL:F92k!URS.Yd/HlE!=2b[VGr%7:2C-Lj6m:jZ=1]G_lnK3SgDZ0_qR'FR~>endstream
+endobj
+37 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1256
+>>
+stream
+Gau1-9lJfF&;KZQ'm"JT7$X^3Q*1Xe92csM\$lD>c(1,fC.X+$DR[Bp6V=uIG\-;45[_C)7%,oXps(rP+K(hUrY@SGT@`S]qZ7*/lR`fN<l+V7gokY1ge9MJE?``_BnBY-diNYgAC[]7WX6!n\GaK1KVJAFet6CL@p&[KD0/n:jKQcE7D3suBHC6DmPN#>,5_n^s&H.$YACm5DZ+-iP8m]W+pQ;%:_lCS$E^bn9!(;E\23^5Cf&qh+^X6e[+4onJ(jbRni'a"'&Gb0`Pe8.]-TXYrG@B%#)/#oBu'WFb-*5J<2aO?`TYKSW$p>'MYMt`\pq4U\6#5#Ldk^.P@sDB?G=b?m$^j&O+aD>Z3!3.r>C:kDT&;l2"Cj73TQmrc?#pgQ6e!("(+8:(`]oJ:7FC;$ef]-ao?;^;E51J^%"6E@'qop@4Q]3Da8#l%pK!-_[Uf0\@(PaJZB5>[*E9_DlB0'Wa*kq0mKo!%8o74pku6=]$/eHX0U"d\3aSGH;%`F0PKM5aC([@6Yf7\DZVf_is;9%n$sZ7'.OuJ^#,N(,H6Y<5!6gK1pNdf.cYSZ-2]fpTV.g<1%IA@An[<lB?=%(W``TAi1=EG#-I)&/VH0k3,ldk6!Jn?O)GJ2>%H`Im%rHtMF.bUD+:bCk*sH?ERUT`@;l:ZV87umDXk8tV_\<c\5_uY&:Zm',jpPCF,bO;j0%<mm^`ci;H:&nfu!S+j:K7a"BG)C6g4A$LP%i:8cg/t:Q2(FnA3.VBb^@u&2h+q-7V)q,48EdnueOke[!H'ZILr\PH0"&1cPb=T](<@20#)9,W5ota&TXH%,="/OTh<Dd%Qk$%FpY!>(p];'g"q<dN2K@97&u-^SA:9J^P0Z0NO['1Z&_cE`#%\LA!5J70\/3q,=!'8V%nF4,Q^b)R_70,1t&$k]S1]P+r_*>/epMY_%438D]DlAq-NBb'^oFY]b"N37],gM^5bU*`<I(NS%]<oP,a`?_H7JZZ.9O;#h@0XUCE)omOSN11Ko+S`MBrS.aE&OY<A9e_R>&1U^KJKOq[IlpK]A<0kkL>]OD*EKQ*35:-rtcR\8>bp482(IhU:NrEVVgkS6ZQ$S2mc*dC"g3aJX#(MBG6CQ"G032o?,)a$9A<A#V4Ad,;pK.&jpo:e-:h,!'m\mA_8q]La(lOP/1<,K[1@I']9J2mkT2i4P=QI^>6Tg$\i\F@pW%7tS;,1MQ*q3-+dm\Pn`?\<feKWHm__$Kn;!0,62u`scbPJU~>endstream
+endobj
+38 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1290
+>>
+stream
+Gat=k;,?43&BE]('_BD:G'eAkV![3Z!fI0o.sfXW]#cf!iRktib4\$tNLdq+&COH"+iObZRGZ6dB4*Ei*u9>B%D^X0rjZLS&m2;fnHk!4%9tG[*`$rt(@f@c1>fd<A%&uoS)tAJbCJd7D$-\[U-cHP2d$%gbMU4h5O"p*cgrU0kTWcFhk'"hUd'>kRDr00]f%^$,hsI^SOS*li6CNBf%3BDo36nkF9u_m)r\K['tDt>.\%nuSm[8t6Yf-LAUt>_Up%TRUE$eHW'NDQ<8mrAnWksWMMK=RU3Q"mCjM2XkmQ/-02!Z1>Y4sj>JW7=`Fq2F,u4g5!%lLno?YfF^P5dtW2(aA[aX.@MMi'bKT`2$#eid4fGZ-NZ!/?\D<L3Z:"q*cmiK)k&iZc&)e[+[EA)V+AJ46hQh-d\L\"[tKt>-@3n)%n)5*2<BDqWRF2K@6cBW>YA?un@kQ8fKB=#Q&+#9IprqpiZ=VCL!C1F*t6KBdY#Y"A55aRe"<X=WL:-jNhaoWP4N)^S`j(nLe2QES<+&,Fp/e7IA4eMp1;>AE\:j/drd#tMN;hGrs8+cYg-.B-(]i\.D]9XLlJp$P0.nZXPK[fLac'-#MlBS%s`Y+\9j1AbJDPNToij^I1iI9rn+]Qi<Z+&'TS.DVDcgtXGn[g&7<4t#(Tdt^0FHJ\*cuddM'Rus+%;_jgq($$/g''FmZ7:eCSK;*s_rCSB5n&6cCJ%PK[7AtToT@b(XY_,a76]NP3/eC=\ph(-WbY[2U]IU&4[uFt601Rs0(AB*b<q*qOeQKB_U</IFBTI-FdahRNW/4JW5G$LNocMRnpmE$d>l[LkD'BAH^Yh"a&\T[jjT8oR*>iS1Z`u%o)j`\eGq9sOF'dJg*fOhf!bT9VPVrZHaehL=%3=pqEcl?e0XBh$Ug8'LuA5u=GiY:9*o:DQY9,)Cu:I/`Zt:er+'d"`<s+m>&-%DQdP4q)&jOuao",dc"ISm=[GK1iQN/%pP<W@+3J,W+!DX@"Lebes3?1E'ZmbYg'r'8)C477]te)+M`@kCZuH2CXr5JY_N0i1N:Qer<HMpHnoRu.'6]V/#'Hk\@'[*ZUL+C!U&j-!U^;.;e<ZR8GtE-bOk<k5ci,D*MrSn8UG6g7X4gpOh2^>V+4a&Mc];3P07Hcf;f=dfN\#._Q:3>?$G+*XN\h:D%C,BoI1$AAH\D8`#TW8^I(L?24!!/j=i([&'&N]adpY'NQ3^ZIA,OJG^p*qjAS?.429Js_6uY4+r*k^\I2I;8[l8+!he)NO(MSJbIfU;=MDt~>endstream
+endobj
+39 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 1387
+>>
+stream
+Gau0D9lK&M&A@7.bV:\Y=5Qo9aX.#qUhCYcfLmlV1q'rl6nM!`S,N"#;Z93#KkhV]!]UIb%-Ke!]Jjj:!W@]>Z`F1FVsq_o#[mkb)2-*kJa"E7:G9FhCj)u;7PHGQ)mgT&@\c:J:@]*^bjO&$q8DD$@JUp:^VTPdqt*)eB`!#i5TW=8.]ikl:!MRM$Qu`P>WREt26pk$:),:GJ3R4:]Z.s)?qgg4XAH\>Q0,C"Yi]NuIm))1>`\o/rjrTE+ug]tGXmS5+ABfngrXSnar<F'Ld-drIQ^F%p#C"@Oc<e^+k/^gbQ<@'Xl(K]";k`KJ\kI0W[mn'5cCn%o%!<k`udeVjmnOb*52^3<H,E/aEp[H:f.X?&S1k:EEr-kJrrm@,[/"m;,D&l1iMM10a_&8\ET3iJt&C'_CHapDSAlYN2/m_:duNE.H(#N1523q5J?UYHlNSLOf$aj'>!0%7k6H7b$UK5=nlU&A2diqgL]FQKJs+uW\54@+KT#2eaQK*$1r9Pk6L,DOdg-27OCTZ3YknQ'eaD>g3ZqD9l2dR<#G>p`tDsFFM]qrQD/FG;#TU\D5B!1pki0aVHa,(W0h"J=S^W@MV+OldO,Yf*[m/FB-RLnj\g2$WP%cm+o"WT9#"uu&0=\aX,R1KC9[7M9c?2@>tJ#fl_"!k:f=(8rjIRNDj]^[\3^*@plS`&CQcZ!DR&7Y?IHeI6d6+nbXjD62$DMri9=E*'<W(W]la4M'`BsbL3Gi6gYbTQZ`?u`h`GYsN<!(ZfJ(a'%5kGGrgn66$r_4(:m*1)&o)e7SIb!<pi0.)C/+uBiYA.sTNKAf-Y[>8L]DY"L+RBg7>2(L9^q<I]_Q"&Ir)%hDQVSg?.lPFoU_47KD$,%Ol'ulA9\;^CaEH6Ai0,G$CO:u`AN/(`7Cu#7hRPI(p/)4\E^:uUT_,3kKJP*s-;(M'fD*'Uf#C&ZuKYOiH7BE>`u^@`bj@Z9;<B4*/SrebQ[b4lt479G`H4\2s]>&Ghl9GhW'34ct/t7p,gp)KQBelr._$kU2&+R6V^7=\<-$9@o0Qf-s6XnUa_9]JN7GLrCC"`q0YIV\/j.rH!s&34DkSK?DlNQ_;ua)>,nEiA,U!RV;Y"sCj#`NF+R!XgNon[9&`-,Nl#-?Tr3cPhHJ`%/(&,H@RT5b\#a$">+/GA7f'P6nFpG-C[EXa5V1?4Ig;gG<rdR6k\IPtLWpd1]f^6d%ZBs)DpN.CTn]q;llBu\Hq4aa/3'!gDF,Eq]ZfSD=hhc0/N.Q<"muPZ6t].W3FOh;P^LTtaNZeCag0[ON>G$*2ZMNb51TTALCe!/K+OP,HU#34"c_9t'D'Lu-_Rn2iWE$lkJC&cnAb8tH6R-LO:&CD>;0+:8N#BKJ;aF-60q'5~>endstream
+endobj
+40 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 212
+>>
+stream
+Garo90akiP&;BlVMDnSPH5G:'=$\2=M]#eeWE$3<dk:WHP>F]aEc;9X*oG!\59+n#!%W]tL;=Mb#gUj,ArF&/XVd44$n,BiJUd:,a@W4rcB5)f2Fr#"Y/"cRF+Ka6G2YaU\ftgNhC?O@'Uu9)QHV>D5X2L(,A@$A[soP()%]Y;;(@2Rfg"o-mpL)-qWuO>#?Q&5Flhl.;[A0qm\E7L~>endstream
+endobj
+xref
+0 41
+0000000000 65535 f 
+0000000061 00000 n 
+0000000123 00000 n 
+0000000230 00000 n 
+0000000342 00000 n 
+0000000537 00000 n 
+0000000732 00000 n 
+0000000851 00000 n 
+0000001046 00000 n 
+0000001241 00000 n 
+0000001436 00000 n 
+0000001632 00000 n 
+0000001828 00000 n 
+0000001934 00000 n 
+0000002130 00000 n 
+0000002326 00000 n 
+0000002522 00000 n 
+0000002718 00000 n 
+0000002914 00000 n 
+0000003110 00000 n 
+0000003306 00000 n 
+0000003502 00000 n 
+0000003698 00000 n 
+0000003768 00000 n 
+0000004049 00000 n 
+0000004214 00000 n 
+0000004614 00000 n 
+0000005002 00000 n 
+0000006933 00000 n 
+0000008619 00000 n 
+0000010068 00000 n 
+0000011629 00000 n 
+0000013105 00000 n 
+0000014648 00000 n 
+0000016330 00000 n 
+0000017978 00000 n 
+0000019410 00000 n 
+0000020843 00000 n 
+0000022191 00000 n 
+0000023573 00000 n 
+0000025052 00000 n 
+trailer
+<<
+/ID 
+[<3233014cacc68d9b1c30ac57d5ad9c2c><3233014cacc68d9b1c30ac57d5ad9c2c>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 23 0 R
+/Root 22 0 R
+/Size 41
+>>
+startxref
+25355
+%%EOF
